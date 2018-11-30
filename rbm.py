@@ -24,18 +24,22 @@ test_set = np.array(test_set, dtype = 'int')
 ## the columns now correspond to the users, movies, ratings and timeestamp (irrelevant)
 ## each row corresponds to a single rating
 
-# Getting the number of users and movies
-nb_users = int(max(max(training_set[:,0]), max(test_set[:,0])))
+# Generating 2 matrices - one for training and the other for test
+# The matrices will contain the users in rows, movies in columns and the cells filled with the corresponding ratings
+# In R, this is equivalent to 'dcast'ing the movie column
+
+## Getting the number of users and movies
+nb_users = int(max(max(training_set[:,0]), max(test_set[:,0]))) # taking the maximum of the highest User IDs in training and test sets
 nb_movies = int(max(max(training_set[:,1]), max(test_set[:,1])))
 
-# Converting the data into an array with users in lines and movies in columns
+# Converting the data into an array (list of list as expected by FloatTensor function later) with users in lines and movies in columns
 def convert(data):
-    new_data = []
-    for id_users in range(1, nb_users + 1):
-        id_movies = data[:,1][data[:,0] == id_users]
-        id_ratings = data[:,2][data[:,0] == id_users]
-        ratings = np.zeros(nb_movies)
-        ratings[id_movies - 1] = id_ratings
+    new_data = [] # this is the list of list for each user containing their ratings
+    for id_users in range(1, nb_users + 1): # looping over all users
+        id_movies = data[:,1][data[:,0] == id_users] # obtains all the movie ID for each user
+        id_ratings = data[:,2][data[:,0] == id_users] # obtains the corresponding ratings
+        ratings = np.zeros(nb_movies) # create a list of zeroes
+        ratings[id_movies - 1] = id_ratings # replace zeroes for when there was a rating given
         new_data.append(list(ratings))
     return new_data
 training_set = convert(training_set)
@@ -57,16 +61,16 @@ test_set[test_set >= 3] = 1
 
 # Creating the architecture of the Neural Network
 class RBM():
-    def __init__(self, nv, nh):
-        self.W = torch.randn(nh, nv)
-        self.a = torch.randn(1, nh)
-        self.b = torch.randn(1, nv)
-    def sample_h(self, x):
+    def __init__(self, nv, nh): # defines the weights and the bias of the RBM once the class is made
+        self.W = torch.randn(nh, nv) # weight is a matrix of torch tensors with nh columns and nv rows containing values that follow a normal distribution
+        self.a = torch.randn(1, nh) # bias for the probabilities of the hidden nodes given the visible nodes
+        self.b = torch.randn(1, nv) # bias for the probabilities of the visible nodes given the hidden nodes
+    def sample_h(self, x): # samples the probabilities of the hidden nodes given the visible nodes
         wx = torch.mm(x, self.W.t())
         activation = wx + self.a.expand_as(wx)
         p_h_given_v = torch.sigmoid(activation)
         return p_h_given_v, torch.bernoulli(p_h_given_v)
-    def sample_v(self, y):
+    def sample_v(self, y): # samples the probabilities of the visible nodes given the hidden nodes
         wy = torch.mm(y, self.W)
         activation = wy + self.b.expand_as(wy)
         p_v_given_h = torch.sigmoid(activation)
