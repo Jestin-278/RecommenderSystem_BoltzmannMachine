@@ -65,42 +65,43 @@ class RBM():
         self.W = torch.randn(nh, nv) # weight is a matrix of torch tensors with nh columns and nv rows containing values that follow a normal distribution
         self.a = torch.randn(1, nh) # bias for the probabilities of the hidden nodes given the visible nodes
         self.b = torch.randn(1, nv) # bias for the probabilities of the visible nodes given the hidden nodes
-    def sample_h(self, x): # samples the probabilities of the hidden nodes given the visible nodes
-        wx = torch.mm(x, self.W.t())
+    def sample_h(self, x): # samples the probabilities of the hidden nodes being activated given the values of the visible nodes
+        wx = torch.mm(x, self.W.t()) # obtain the product of the input vector x and the transpose of the tensor of weights W
         activation = wx + self.a.expand_as(wx)
         p_h_given_v = torch.sigmoid(activation)
-        return p_h_given_v, torch.bernoulli(p_h_given_v)
-    def sample_v(self, y): # samples the probabilities of the visible nodes given the hidden nodes
+        return p_h_given_v, torch.bernoulli(p_h_given_v) # returns a vector of nh elements containing the probability of each hidden node being activated, along with its bernoulli's sampling
+    def sample_v(self, y): # samples the probabilities of the visible nodes being activated given the values of the hidden nodes
         wy = torch.mm(y, self.W)
         activation = wy + self.b.expand_as(wy)
         p_v_given_h = torch.sigmoid(activation)
         return p_v_given_h, torch.bernoulli(p_v_given_h)
-    def train(self, v0, vk, ph0, phk):
-        self.W += torch.mm(v0.t(), ph0) - torch.mm(vk.t(), phk)
-        self.b += torch.sum((v0 - vk), 0)
+    def train(self, v0, vk, ph0, phk): # takes as inputs the input vector of ratings by a user, the visible node obtained after k iterations, the vector of probabilities of hidden nodes at the first iteration, and the vector of probabilities of hidden nodes after k samplings given the values of the visible nodes
+        self.W += (torch.mm(v0.t(), ph0) - torch.mm(vk.t(), phk)).t() # weights will be updated towards the direction of maximumn log likelihood
+        self.b += torch.sum((v0 - vk), 0) # biases will be updated towards the direction of maximumn log likelihood
         self.a += torch.sum((ph0 - phk), 0)
-nv = len(training_set[0])
-nh = 100
-batch_size = 100
+# Creating an RBM object
+nv = len(training_set[0]) # number of visible nodes is the number of features in the training/test set matrix after dcasting, ie, number of movies
+nh = 100 # arbitrary choice for the number of features to be detected
+batch_size = 100 # number of observations after which the weights and biases in the RBM class will be adjusted
 rbm = RBM(nv, nh)
 
 # Training the RBM
 nb_epoch = 10
 for epoch in range(1, nb_epoch + 1):
     train_loss = 0
-    s = 0.
-    for id_user in range(0, nb_users - batch_size, batch_size):
-        vk = training_set[id_user:id_user+batch_size]
-        v0 = training_set[id_user:id_user+batch_size]
-        ph0,_ = rbm.sample_h(v0)
-        for k in range(10):
-            _,hk = rbm.sample_h(vk)
-            _,vk = rbm.sample_v(hk)
-            vk[v0<0] = v0[v0<0]
-        phk,_ = rbm.sample_h(vk)
+    s = 0. # counter (of type float) to normalize the train loss
+    for id_user in range(0, nb_users - batch_size, batch_size): # looping through different batches
+        vk = training_set[id_user:id_user+batch_size] # input batch containing ratings of all the users in the batch
+        v0 = training_set[id_user:id_user+batch_size] # target, which unllke the input batch will not be updated during contrastive divergence
+        ph0,_ = rbm.sample_h(v0) # initial probabilities
+        for k in range(10):  # for the k steps (random walk) of contrastive divergence
+            _,hk = rbm.sample_h(vk) # walk from the visible node to the hidden node
+            _,vk = rbm.sample_v(hk) # walk from the hidden node to the visible node
+            vk[v0<0] = v0[v0<0] # keep the original -1 ratings as is, i.e., make sure the training was not done for ratings that were not existent
+        phk,_ = rbm.sample_h(vk) # obtain vector of probabilities of hidden nodes after k samplings given the values of the visible nodes
         rbm.train(v0, vk, ph0, phk)
-        train_loss += torch.mean(torch.abs(v0[v0>=0] - vk[v0>=0]))
-        s += 1.
+        train_loss += torch.mean(torch.abs(v0[v0>=0] - vk[v0>=0])) # simple difference between predicted and actual
+        s += 1. # increment the counter
     print('epoch: '+str(epoch)+' loss: '+str(train_loss/s))
 
 # Testing the RBM
