@@ -108,9 +108,9 @@ for epoch in range(1, nb_epoch + 1):
 test_loss = 0
 s = 0.
 for id_user in range(nb_users):
-    v = training_set[id_user:id_user+1]
-    vt = test_set[id_user:id_user+1]
-    if len(vt[vt>=0]) > 0:
+    v = training_set[id_user:id_user+1] # inputs of the training set are used to activate the neurons of the RBM to get the predicted ratings of the test set
+    vt = test_set[id_user:id_user+1] # contains the original ratings of the test set; used to compare actual vs predicted
+    if len(vt[vt>=0]) > 0: # filter out non-existent ratings in test set
         _,h = rbm.sample_h(v)
         _,v = rbm.sample_v(h)
         test_loss += torch.mean(torch.abs(vt[vt>=0] - v[vt>=0]))
