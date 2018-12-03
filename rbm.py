@@ -32,7 +32,7 @@ test_set = np.array(test_set, dtype = 'int')
 nb_users = int(max(max(training_set[:,0]), max(test_set[:,0]))) # taking the maximum of the highest User IDs in training and test sets
 nb_movies = int(max(max(training_set[:,1]), max(test_set[:,1])))
 
-# Converting the data into an array (list of list as expected by FloatTensor function later) with users in lines and movies in columns
+# Restructuring the data into an array (list of list as expected by FloatTensor function later) with users in lines and movies in columns
 def convert(data):
     new_data = [] # this is the list of list for each user containing their ratings
     for id_users in range(1, nb_users + 1): # looping over all users
